@@ -1,4 +1,6 @@
+from optparse import Values
 from re import search
+from webbrowser import get
 import PySimpleGUI as sg
 import configparser
 from pathlib import Path
@@ -46,8 +48,11 @@ def main():
         if event == '-Move_change_window-':
             window.close()
             window = gui.change_window()
-            # 備品一覧.xlsxから読み込み管理番号リストボックスに反映
-            pass
+            # 備品一覧.xlsxから管理番号を取得
+            item_id_list = get_item_id_list(itemlist_path)
+            # 管理番号リストボックスに反映
+            window['-Item_id_list-'].update(values=item_id_list)
+            
         # 備品管理画面へ移動
 
         #-----
@@ -69,10 +74,6 @@ def main():
             # 新規登録、備品管理ボタンを有効化
             window['-Move_change_window-'].update(disabled=False)
             window['-Move_registration_window-'].update(disabled=False)
-
-            
-            
-            
 
         #-----
         # 新規登録画面のイベント
@@ -119,11 +120,41 @@ def main():
         #-----
         # 備品管理画面のイベント
         #-----
-
+        # 管理番号が選択された時、各ウィジェットに備品情報を反映
+        if event == '-Item_id_list-':
+            # 選択された管理番号を取得
+            try:
+                item_id = values['-Item_id_list-'][0]
+                # ウィジェットアップデート
+                wgt_update(itemlist_path, item_id, window)
+            except:
+                sg.popup('情報がありません')
+                window.close()
+                window = gui.main_window()
+            
         # 備品情報の更新
-
+        if event == '-Update-':
+            try:
+                # ウィジェットの値をリスト型変数input_dataに格納
+                item_id = values['-Item_id_list-'][0]
+                input_data = [item_id, values['-Item_name-'],
+                    values['-Shelf_number-'], values['-Owner-']]
+                # QR code 作成
+                qrcode_path = create_qrcode(qrfolder_path, input_data)
+                # 備品情報を更新
+                update_data(itemlist_path, input_data, qrcode_path)
+            except Exception as e:
+                sg.popup(e)
         # 備品情報の削除
-    
+        if event == '-Delete-':
+            try:
+                # 削除対象の管理番号をdelete_item_idに格納
+                delete_item_id = values['-Item_id_list-'][0]
+                # 備品情報を削除
+                delete_data(itemlist_path, delete_item_id, window)
+            except Exception as e:
+                sg.popup(e)
+
     window.close()
 
 def initialize_app(path):
@@ -224,5 +255,69 @@ def create_data(path, data, qr_path):
     # wbを上書き保存
     wb.save(path)
     return sg.popup_ok('書き込みが完了しました')
+
+def get_item_id_list(path):
+    # 備品一覧.xlsxのデータを取得
+    wb, ws, data = get_xlsx_data(path)
+    # 管理番号を格納するリスト型変数item_id_listを宣言
+    item_id_list = []
+    # 備品一覧.xlsx内の管理番号を全てitem_id_listへ格納
+    for row in range(len(data)):
+        item_id_list.append(data[row][0].value)
+
+    return item_id_list
+
+def wgt_update(path, search_value, window):
+    # 備品一覧.xlsxのデータを取得
+    wb, ws, xlsxdata = get_xlsx_data(path)
+    for row in range(len(xlsxdata)):
+        # 管理番号が一致した場合の処置
+        if str(search_value) == str(xlsxdata[row][0].value):
+            # ウィジェットを一旦クリア
+            window['-Item_name-'].update(value='')
+            window['-Shelf_number-'].update(value='')
+            window['-Owner-'].update(value='')
+            # ウィジェットを更新する
+            window['-Item_name-'].update(value=xlsxdata[row][1].value)
+            window['-Shelf_number-'].update(value=xlsxdata[row][2].value)
+            window['-Owner-'].update(value=xlsxdata[row][3].value)
+            break
+
+def update_data(path, data, qr_path):
+    # 備品一覧.xlsxのデータを取得
+    wb, ws, xlsxdata = get_xlsx_data(path)
+    # 備品一覧.xlsxから一致する管理番号を検索し、行番号を取得
+    matched_row = search_row(xlsxdata, data[0])
+    # セルに値を上書き(更新)
+    for colm in range(len(data)):
+        ws.cell(row=matched_row, column=colm + 1, value=data[colm])
+        # セルにQRコードのパスを書き込み
+        ws.cell(row=matched_row, column=len(data) + 1, value=qr_path)
+    # wbを上書き保存
+    wb.save(path)
+    return sg.popup_ok('更新が完了しました')
+
+def delete_data(path, search_value, window):
+    # 備品一覧.xlsxのデータを取得
+    wb, ws, xlsxdata = get_xlsx_data(path)
+    # 備品一覧.xlsxから一致する管理番号を検索し、行番号を取得
+    matched_row = search_row(xlsxdata, search_value)
+    # 管理番号に対応するQRコードを削除
+    qr_path = xlsxdata[matched_row - 2][4].value
+    if qr_path is not None:
+        Path(qr_path).unlink()
+    # wsから削除対象の行を削除
+    ws.delete_rows(matched_row)
+    # wbを上書き保存
+    wb.save(path)
+    # リストボックスを更新
+    item_id_list = get_item_id_list(path)
+    window['-Item_id_list-'].update(values=item_id_list)
+    window['-Item_name-'].update(value='')
+    window['-Shelf_number-'].update(value='')
+    window['-Owner-'].update(value='')
+
+    return sg.popup('削除しました')
+
 if __name__ == '__main__':
     main()

@@ -1,19 +1,22 @@
 import PySimpleGUI as sg
+import font
+import icon
 
 sg.theme('Reddit')
+appicon = icon.appicon
 
 
 def main_window():
     menu_def = [['メニュー', ['初期設定', '終了']], ]
     main_layout = [
         [sg.Menu(menu_def)],
-        [sg.Text('備品管理アプリ', size=(26, 2), justification='c')],
+        [sg.Text('備品管理アプリ', size=(26, 2), justification='c', font=font.hgmaru_l_b)],
         [sg.Button('新規登録', key='-Move_registration_window-',
-            disabled=True, tooltip='備品の新規登録'),
+            disabled=True, tooltip='備品の新規登録', font=font.udp_m_i),
         sg.Button('備品管理', key='-Move_change_window-',
-            disabled=True, tooltip='備品の変更/削除')],
+            disabled=True, tooltip='備品の変更/削除', font=font.udp_m_i)],
     ]
-    return sg.Window('メイン画面', main_layout, size=(180, 100), finalize=True)
+    return sg.Window('メイン画面', main_layout, icon=appicon, finalize=True)
 
 
 def initialize_window():
