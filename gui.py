@@ -27,7 +27,8 @@ def registration_window():
     registration_layout = [
         [sg.Text('管理番号', size=(8, 1)), sg.Input(key='-Item_id-', enable_events=True)],
         [sg.Text('品名', size=(8, 1)), sg.Input(key='-Item_name-')],
-        [sg.Text('棚番号', size=(8, 1)), sg.Input(key='-Owner-')],
+        [sg.Text('棚番号', size=(8, 1)), sg.Input(key='-Shelf_number-')],
+        [sg.Text('管理者', size=(8,1)), sg.Input(key='-Owner-')],
         [sg.Button('登録', key='-Register-')],]
     return sg.Window('新規登録画面', registration_layout, finalize=True)
 
